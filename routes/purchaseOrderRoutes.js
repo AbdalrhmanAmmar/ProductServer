@@ -293,4 +293,28 @@ router.post('/:id/payments', async (req, res) => {
   }
 });
 
+router.get('/order/:orderId', async (req, res) => {
+  try {
+    console.log('GET purchase orders by order ID:', req.params.orderId);
+    
+    const purchaseOrders = await PurchaseOrderService.getPurchaseOrdersByOrderId(
+      req.params.orderId
+    );
+
+    res.status(200).json({
+      success: true,
+      data: purchaseOrders
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+
+
+
 module.exports = router;
