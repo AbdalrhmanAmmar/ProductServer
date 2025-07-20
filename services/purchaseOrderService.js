@@ -141,25 +141,33 @@ class PurchaseOrderService {
   }
 
   // Get single purchase order by ID
-  static async getPurchaseOrderById(purchaseOrderId) {
-    try {
-      console.log('Fetching purchase order by ID:', purchaseOrderId);
+static async getPurchaseOrderById(purchaseOrderId) {
+  try {
+    const purchaseOrder = await PurchaseOrder.findById(purchaseOrderId)
+      .populate('orderId', 'projectName clientName commissionRate')
+      .populate('supplierId', 'supplierName contactPerson email phone');
 
-      const purchaseOrder = await PurchaseOrder.findById(purchaseOrderId)
-        .populate('orderId', 'projectName clientName commissionRate')
-        .populate('supplierId', 'supplierName contactPerson email phone');
-
-      if (!purchaseOrder) {
-        throw new Error('Purchase order not found');
-      }
-
-      console.log('Purchase order found:', purchaseOrder._id);
-      return purchaseOrder;
-    } catch (error) {
-      console.error('Error fetching purchase order by ID:', error);
-      throw error;
+    if (!purchaseOrder) {
+      return {
+        success: false,
+        message: 'Purchase order not found',
+        data: null
+      };
     }
+
+    return {
+      success: true,
+      data: purchaseOrder
+    };
+  } catch (error) {
+    console.error('Error fetching purchase order by ID:', error);
+    return {
+      success: false,
+      message: error.message || 'Failed to fetch purchase order',
+      data: null
+    };
   }
+}
 
   // Update purchase order
   static async updatePurchaseOrder(purchaseOrderId, updateData) {
