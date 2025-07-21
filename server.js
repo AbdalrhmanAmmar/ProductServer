@@ -12,6 +12,7 @@ const seedRoutes = require('./routes/seedRoutes');
 const clientRoutes = require('./routes/clientRoutes');
 const supplierRoutes = require('./routes/supplierRoutes');
 const orderRoutes = require('./routes/orderRoutes');
+const invoiceRoutes = require('./routes/invoices');
 const purchaseOrderRoutes = require('./routes/purchaseOrderRoutes');
 const connectDB = require('./config/database.js');
 
@@ -35,6 +36,7 @@ app.use('/api/clients', clientRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/purchase-orders', purchaseOrderRoutes);
+app.use('/api/invoices', invoiceRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

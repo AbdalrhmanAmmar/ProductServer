@@ -1,5 +1,6 @@
 const Order = require('../models/Order');
 const Client = require('../models/Client');
+const PurchaseOrder = require('../models/PurchaseOrder');
 
 class OrderService {
   // Create a new order
@@ -68,23 +69,28 @@ class OrderService {
   }
 
   // Get single order by ID (including archived)
-  static async getOrderById(orderId) {
-    try {
-      console.log('Fetching order by ID:', orderId);
-      
-      const order = await Order.findById(orderId).populate('clientId', 'companyName contactPerson email phone');
-      
-      if (!order) {
-        throw new Error('Order not found');
-      }
+static async getOrderById(orderId) {
+  try {
+    console.log('Fetching order by ID:', orderId);
 
-      console.log('Order found:', order._id);
-      return order;
-    } catch (error) {
-      console.error('Error fetching order by ID:', error);
-      throw error;
+    const order = await Order.findById(orderId).populate('clientId', 'companyName contactPerson email phone');
+    if (!order) {
+      throw new Error('Order not found');
     }
+
+    // Fetch purchase orders related to this order
+    const purchaseOrders = await PurchaseOrder.find({ orderId }).populate('supplierId', 'supplierName email phone');
+
+    console.log('Order found:', order._id);
+    return {
+      order,
+      purchaseOrders,
+    };
+  } catch (error) {
+    console.error('Error fetching order by ID:', error);
+    throw error;
   }
+}
 
   // Update order
   static async updateOrder(orderId, updateData) {
