@@ -31,6 +31,31 @@ class InvoiceService {
       throw error;
     }
   }
+  static async updateInvoice(invoiceId, updateData) {
+  try {
+    console.log('Updating invoice with ID:', invoiceId);
+    console.log('Update data:', JSON.stringify(updateData, null, 2));
+
+    const invoice = await Invoice.findById(invoiceId);
+    if (!invoice) {
+      throw new Error('Invoice not found');
+    }
+
+    // Only update allowed fields
+    if (updateData.dueDate) invoice.dueDate = new Date(updateData.dueDate);
+    if (updateData.paymentTerms) invoice.paymentTerms = updateData.paymentTerms;
+    if (updateData.status) invoice.status = updateData.status;
+
+    const updatedInvoice = await invoice.save();
+
+    console.log('Invoice updated successfully:', updatedInvoice._id);
+    return updatedInvoice;
+  } catch (error) {
+    console.error('Error updating invoice:', error);
+    throw error;
+  }
+}
+
 }
 
 module.exports = InvoiceService;

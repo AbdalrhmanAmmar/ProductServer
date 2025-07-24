@@ -15,6 +15,7 @@ const orderRoutes = require('./routes/orderRoutes');
 const invoiceRoutes = require('./routes/invoices');
 const purchaseOrderRoutes = require('./routes/purchaseOrderRoutes');
 const connectDB = require('./config/database.js');
+const shippingRoutes = require('./routes/shippingRoutes');
 
 
 const app = express();
@@ -37,6 +38,8 @@ app.use('/api/suppliers', supplierRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/purchase-orders', purchaseOrderRoutes);
 app.use('/api/invoices', invoiceRoutes);
+app.use('/api/shipping', shippingRoutes);
+
 
 // Error handling middleware
 app.use((err, req, res, next) => {

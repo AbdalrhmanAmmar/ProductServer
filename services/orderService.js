@@ -4,28 +4,35 @@ const PurchaseOrder = require('../models/PurchaseOrder');
 
 class OrderService {
   // Create a new order
-  static async createOrder(orderData) {
-    try {
-      console.log('Creating new order with data:', orderData);
+static async createOrder(orderData) {
+  try {
+    console.log('Creating new order with data:', orderData);
 
-      // Use provided clientName, or fallback
-      const clientName = orderData.clientName || 'Unknown Client';
-
-      // Create and save order
-      const order = new Order({
-        ...orderData,
-        clientName
-      });
-
-      const savedOrder = await order.save();
-      console.log('✅ Order created successfully:', savedOrder._id);
-
-      return savedOrder;
-    } catch (error) {
-      console.error('❌ Error creating order:', error);
-      throw error;
+    // ✅ Fetch the client from DB
+    const client = await Client.findById(orderData.clientId);
+    if (!client) {
+      throw new Error('Client not found');
     }
+
+    // ✅ Use the real client name from DB
+    const clientName = client.companyName;
+
+    // ✅ Create the order with real client name
+    const order = new Order({
+      ...orderData,
+      clientName
+    });
+
+    const savedOrder = await order.save();
+    console.log('✅ Order created successfully:', savedOrder._id);
+
+    return savedOrder;
+  } catch (error) {
+    console.error('❌ Error creating order:', error);
+    throw error;
   }
+}
+
 
   // Get all orders with pagination and filtering (excluding archived)
   static async getOrders(filters = {}) {

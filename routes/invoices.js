@@ -34,4 +34,27 @@ router.post('/', async (req, res) => {
   }
 });
 
+// PUT /api/invoices/:id
+router.put('/:id', async (req, res) => {
+  try {
+    const invoiceId = req.params.id;
+    console.log(`PUT /api/invoices/${invoiceId} - Editing invoice`);
+
+    const updatedInvoice = await InvoiceService.updateInvoice(invoiceId, req.body);
+
+    res.status(200).json({
+      success: true,
+      message: 'Invoice updated successfully',
+      data: { invoice: updatedInvoice },
+    });
+  } catch (error) {
+    console.error(`Error in PUT /api/invoices/${req.params.id}:`, error);
+    res.status(400).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+
 module.exports = router;
