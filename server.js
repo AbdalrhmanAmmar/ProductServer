@@ -55,11 +55,15 @@ app.use((err, req, res, next) => {
 
 
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+connectDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`✅ Server running on port ${PORT}`);
+  });
+}).catch((err) => {
+  console.error('❌ Failed to connect to MongoDB:', err);
+  process.exit(1); // Exit the process if DB connection fails
 });
 
-connectDB();
 
 
 module.exports = app;
