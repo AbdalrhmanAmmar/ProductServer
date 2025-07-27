@@ -4,42 +4,44 @@ const PurchaseOrder = require('../models/PurchaseOrder');
 class InvoiceService {
 static async createInvoice(invoiceData) {
   try {
-    console.log('Creating invoice with data:', JSON.stringify(invoiceData, null, 2));
-
     const {
       purchaseId,
       dueDate,
       paymentTerms,
       items = [],
-      clientName,
-      clientId
+      commissionRate
     } = invoiceData;
 
-    const purchaseOrder = await PurchaseOrder.findById(purchaseId);
-    if (!purchaseOrder) {
+    // Basic validation
+    if (!items || items.length === 0) {
+      throw new Error('At least one invoice item is required');
+    }
+
+    // Verify purchase order exists (but don't need its orderId)
+    const purchaseOrderExists = await PurchaseOrder.exists({ _id: purchaseId });
+    if (!purchaseOrderExists) {
       throw new Error('Purchase order not found');
     }
 
-    // 🧠 حساب total لكل عنصر
+    // Calculate invoice amounts
     const calculatedItems = items.map(item => ({
       ...item,
       total: item.quantity * item.unitPrice,
     }));
 
     const subtotal = calculatedItems.reduce((sum, item) => sum + item.total, 0);
-    const commissionRate = 5;
-    const commissionFee = subtotal * (commissionRate / 100);
+    const actualCommissionRate = commissionRate || 5;
+    const commissionFee = subtotal * (actualCommissionRate / 100);
     const total = subtotal + commissionFee;
 
+    // Create invoice
     const invoice = new Invoice({
       purchaseId,
       dueDate: new Date(dueDate),
-      paymentTerms,
+      paymentTerms: paymentTerms || 'Net 30',
       items: calculatedItems,
-      clientId,
-      clientName,
       subtotal,
-      commissionRate,
+      commissionRate: actualCommissionRate,
       commissionFee,
       total,
       status: 'draft',
@@ -47,14 +49,21 @@ static async createInvoice(invoiceData) {
 
     const savedInvoice = await invoice.save();
 
-    console.log('Invoice created successfully:', savedInvoice._id);
-    return savedInvoice;
+    return {
+      success: true,
+      message: 'Invoice created successfully',
+      data: savedInvoice
+    };
+
   } catch (error) {
-    console.error('Error creating invoice:', error);
-    throw error;
+    console.error('Invoice creation error:', error.message);
+    return {
+      success: false,
+      message: error.message || 'Failed to create invoice',
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    };
   }
 }
-
 
   static async updateInvoice(invoiceId, updateData) {
   try {

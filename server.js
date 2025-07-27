@@ -16,10 +16,20 @@ const invoiceRoutes = require('./routes/invoices');
 const purchaseOrderRoutes = require('./routes/purchaseOrderRoutes');
 const connectDB = require('./config/database.js');
 const shippingRoutes = require('./routes/shippingRoutes');
+const accountingRoutes = require('./routes/accountingRoutes');
+const transactionRoutes = require('./routes/transactionRoutes');
+
 
 
 const app = express();
 const PORT = process.env.PORT || 4444;
+
+app.use(cors({
+  origin: 'http://localhost:5173', // أو رابط الفرونت إند
+  credentials: true
+}));
+
+
 
 
 
@@ -39,6 +49,15 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/purchase-orders', purchaseOrderRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/shipping', shippingRoutes);
+app.use('/api/accounts', accountingRoutes);
+app.use('/api/transactions',transactionRoutes );
+
+
+app.post('/logs', (req, res) => {
+  console.log('Log received:', req.body);
+  res.status(200).json({ message: 'Log received' });
+});
+
 
 
 // Error handling middleware

@@ -170,45 +170,69 @@ static async getPurchaseOrderById(purchaseOrderId) {
 }
 
   // Update purchase order
-  static async updatePurchaseOrder(purchaseOrderId, updateData) {
+static async updatePurchaseOrder(purchaseOrderId, updateData) {
     try {
       console.log('Updating purchase order:', purchaseOrderId, 'with data:', JSON.stringify(updateData, null, 2));
 
+      // Validate purchaseOrderId
+      if (!purchaseOrderId) {
+        throw new Error('Purchase order ID is required');
+      }
+
       // If items are being updated, recalculate totals
       if (updateData.items) {
+        // Validate items
+        if (!Array.isArray(updateData.items)) {
+          throw new Error('Items must be an array');
+        }
+
         const totalAmount = updateData.items.reduce((sum, item) => {
-          const itemTotal = (item.quantity || 0) * (item.unitPrice || 0);
+          const quantity = Number(item.quantity) || 0;
+          const unitPrice = Number(item.unitPrice) || 0;
+          const itemTotal = quantity * unitPrice;
           return sum + itemTotal;
         }, 0);
 
         // Process items with calculated totals
-        updateData.items = updateData.items.map(item => ({
-          ...item,
-          total: (item.quantity || 0) * (item.unitPrice || 0)
-        }));
+        updateData.items = updateData.items.map(item => {
+          const quantity = Number(item.quantity) || 0;
+          const unitPrice = Number(item.unitPrice) || 0;
+          return {
+            ...item,
+            total: quantity * unitPrice
+          };
+        });
 
         updateData.totalAmount = totalAmount;
         
         // Recalculate remaining amount if total changed
         const currentPO = await PurchaseOrder.findById(purchaseOrderId);
         if (currentPO) {
-          updateData.remainingAmount = totalAmount - currentPO.paidAmount;
+          const paidAmount = Number(currentPO.paidAmount) || 0;
+          updateData.remainingAmount = totalAmount - paidAmount;
+        } else {
+          updateData.remainingAmount = totalAmount; // If no current PO, assume nothing paid
         }
       }
 
-      const purchaseOrder = await PurchaseOrder.findByIdAndUpdate(
+      const updatedPO = await PurchaseOrder.findByIdAndUpdate(
         purchaseOrderId,
         { ...updateData, updatedAt: new Date() },
         { new: true, runValidators: true }
       ).populate('orderId', 'projectName clientName')
-        .populate('supplierId', 'supplierName contactPerson email phone');
+       .populate('supplierId', 'supplierName contactPerson email phone');
 
-      if (!purchaseOrder) {
+      if (!updatedPO) {
         throw new Error('Purchase order not found');
       }
 
-      console.log('Purchase order updated successfully:', purchaseOrder._id);
-      return purchaseOrder;
+      console.log('Purchase order updated successfully:', updatedPO._id);
+      
+      // Return in the expected format
+      return { 
+        success: true,
+        purchaseOrder: updatedPO 
+      };
     } catch (error) {
       console.error('Error updating purchase order:', error);
       throw error;

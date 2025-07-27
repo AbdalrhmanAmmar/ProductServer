@@ -15,18 +15,6 @@ const invoiceSchema = new mongoose.Schema({
     required: true
   },
 
-  // تفاصيل العميل
-  clientId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Client',
-    required: false // لو عندك جدول عملاء
-  },
-  clientName: {
-    type: String,
-    required: true
-  },
-
-  // تواريخ
   invoiceDate: {
     type: Date,
     required: true,
@@ -36,21 +24,12 @@ const invoiceSchema = new mongoose.Schema({
     type: Date,
     required: true
   },
-
-  // شروط الدفع
   paymentTerms: {
     type: String,
     required: true,
     default: 'Net 30'
   },
-
-  // البنود داخل الفاتورة
-  items: {
-    type: [invoiceItemSchema],
-    default: []
-  },
-
-  // ملخص مالي
+  items: [invoiceItemSchema],
   subtotal: {
     type: Number,
     required: true,
@@ -59,7 +38,8 @@ const invoiceSchema = new mongoose.Schema({
   commissionRate: {
     type: Number,
     required: true,
-    min: 0
+    min: 0,
+    default: 5 // قيمة افتراضية
   },
   commissionFee: {
     type: Number,
@@ -71,14 +51,16 @@ const invoiceSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
-
-  // حالة الفاتورة
+  amountPaid: { // إضافة تتبع المدفوعات
+    type: Number,
+    default: 0,
+    min: 0
+  },
   status: {
     type: String,
-    enum: ['draft', 'sent', 'paid', 'cancelled'],
+    enum: ['draft', 'sent', 'paid', 'partially_paid', 'cancelled'],
     default: 'draft'
   },
-
   createdAt: {
     type: Date,
     default: Date.now,
