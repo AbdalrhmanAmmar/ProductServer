@@ -90,6 +90,31 @@ static async createInvoice(invoiceData) {
   }
 }
 
+static async getInvoicesByPurchaseId(purchaseId) {
+  try {
+    const invoices = await Invoice.find({ purchaseId })
+
+      .exec();
+
+    return {
+      success: true,
+      data: invoices
+    };
+  } catch (error) {
+    console.error('Error fetching invoices by purchase ID:', error);
+    return {
+      success: false,
+      message: 'Failed to fetch invoices by purchase ID',
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    };
+  }
 }
+
+
+
+
+}
+
+
 
 module.exports = InvoiceService;

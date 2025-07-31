@@ -56,5 +56,25 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// GET /api/invoices/:id
+// GET /api/invoices/:id
+router.get('/:id', async (req, res) => {
+  try {
+    const result = await InvoiceService.getInvoice(req.params.id);
+    
+    if (!result.success) {
+      return res.status(404).json(result);
+    }
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error fetching invoice:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching invoice'
+    });
+  }
+});
+
 
 module.exports = router;

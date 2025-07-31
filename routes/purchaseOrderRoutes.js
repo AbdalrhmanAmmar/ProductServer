@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const PurchaseOrderService = require('../services/purchaseOrderService');
+const InvoiceService = require('../services/InvoiceService');
 // const { requireUser } = require('./middleware/auth');
 
 // Apply authentication middleware to all routes
@@ -310,6 +311,24 @@ router.get('/order/:orderId', async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message
+    });
+  }
+});
+// GET /api/invoices/purchase/:purchaseId
+router.get('/:purchaseId', async (req, res) => {
+  try {
+    const result = await InvoiceService.getInvoicesByPurchaseId(req.params.purchaseId);
+    
+    if (!result.success) {
+      return res.status(404).json(result);
+    }
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error('Error fetching invoices by purchase ID:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching invoices'
     });
   }
 });

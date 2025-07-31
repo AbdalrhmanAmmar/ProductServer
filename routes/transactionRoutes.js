@@ -142,7 +142,7 @@ router.post(
 
       const transaction = await TransactionService.createTransaction(
         req.body,
-        req.user.id
+
       );
       
       res.status(201).json({
