@@ -65,28 +65,49 @@ static async createInvoice(invoiceData) {
   }
 }
 
-  static async updateInvoice(invoiceId, updateData) {
+static async updateInvoice(invoiceId, updateData) {
   try {
-    console.log('Updating invoice with ID:', invoiceId);
-    console.log('Update data:', JSON.stringify(updateData, null, 2));
-
+    // 1. التحقق من وجود الفاتورة
     const invoice = await Invoice.findById(invoiceId);
     if (!invoice) {
-      throw new Error('Invoice not found');
+      return { success: false, message: 'Invoice not found' };
     }
 
-    // Only update allowed fields
-    if (updateData.dueDate) invoice.dueDate = new Date(updateData.dueDate);
-    if (updateData.paymentTerms) invoice.paymentTerms = updateData.paymentTerms;
-    if (updateData.status) invoice.status = updateData.status;
+    // 2. تحديث العناصر إذا وجدت
+    if (updateData.items) {
+      invoice.items = updateData.items.map(item => ({
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        total: item.quantity * item.unitPrice // احتساب الـ total تلقائياً
+      }));
 
+      // 3. إعادة حساب المجاميع
+      invoice.subtotal = invoice.items.reduce((sum, item) => sum + item.total, 0);
+      invoice.commissionFee = invoice.subtotal * (invoice.commissionRate / 100);
+      invoice.total = invoice.subtotal + invoice.commissionFee;
+    }
+
+    // 4. تحديث الحقول الأخرى
+    const updatableFields = ['dueDate', 'paymentTerms', 'status', 'commissionRate'];
+    updatableFields.forEach(field => {
+      if (updateData[field] !== undefined) {
+        invoice[field] = field === 'dueDate' ? new Date(updateData[field]) : updateData[field];
+      }
+    });
+
+    // 5. حفظ التغييرات
     const updatedInvoice = await invoice.save();
 
-    console.log('Invoice updated successfully:', updatedInvoice._id);
-    return updatedInvoice;
+    return {
+      success: true,
+      message: 'Invoice updated successfully',
+      data: updatedInvoice
+    };
+
   } catch (error) {
-    console.error('Error updating invoice:', error);
-    throw error;
+    console.error('Update error:', error);
+    return { success: false, message: error.message };
   }
 }
 

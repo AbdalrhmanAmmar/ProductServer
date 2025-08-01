@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const InvoiceService = require('../services/InvoiceService');
+const { mongoose } = require('mongoose');
 
 // POST /api/invoices
 router.post('/', async (req, res) => {
@@ -37,30 +38,57 @@ router.post('/', async (req, res) => {
 // PUT /api/invoices/:id
 router.put('/:id', async (req, res) => {
   try {
-    const invoiceId = req.params.id;
-    console.log(`PUT /api/invoices/${invoiceId} - Editing invoice`);
+    const { id } = req.params;
+    
+    // التحقق من صحة ID
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid ID format' });
+    }
 
-    const updatedInvoice = await InvoiceService.updateInvoice(invoiceId, req.body);
+    // التحقق من وجود بيانات التحديث
+    if (!req.body || Object.keys(req.body).length === 0) {
+      return res.status(400).json({ success: false, message: 'No update data provided' });
+    }
 
-    res.status(200).json({
-      success: true,
-      message: 'Invoice updated successfully',
-      data: { invoice: updatedInvoice },
-    });
+    const result = await InvoiceService.updateInvoice(id, req.body);
+
+    if (!result.success) {
+      return res.status(404).json(result);
+    }
+
+    res.status(200).json(result);
+
   } catch (error) {
-    console.error(`Error in PUT /api/invoices/${req.params.id}:`, error);
-    res.status(400).json({
-      success: false,
-      message: error.message
+    res.status(500).json({ 
+      success: false, 
+      message: 'Server error',
+      error: error.message
     });
   }
 });
 
 // GET /api/invoices/:id
 // GET /api/invoices/:id
-router.get('/:id', async (req, res) => {
+// router.get('/:id', async (req, res) => {
+//   try {
+//     const result = await InvoiceService.getInvoice(req.params.id);
+    
+//     if (!result.success) {
+//       return res.status(404).json(result);
+//     }
+
+//     res.status(200).json(result);
+//   } catch (error) {
+//     console.error('Error fetching invoice:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Server error while fetching invoice'
+//     });
+//   }
+// });
+router.get('/:purchaseId', async (req, res) => {
   try {
-    const result = await InvoiceService.getInvoice(req.params.id);
+    const result = await InvoiceService.getInvoicesByPurchaseId(req.params.purchaseId);
     
     if (!result.success) {
       return res.status(404).json(result);
@@ -68,10 +96,10 @@ router.get('/:id', async (req, res) => {
 
     res.status(200).json(result);
   } catch (error) {
-    console.error('Error fetching invoice:', error);
+    console.error('Error fetching invoices by purchase ID:', error);
     res.status(500).json({
       success: false,
-      message: 'Server error while fetching invoice'
+      message: 'Server error while fetching invoices'
     });
   }
 });
