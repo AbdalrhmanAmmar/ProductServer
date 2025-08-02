@@ -18,6 +18,7 @@ const connectDB = require('./config/database.js');
 const shippingRoutes = require('./routes/shippingRoutes');
 const accountingRoutes = require('./routes/accountingRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
+const ShippingCompanyRoutes = require('./routes/ShippingCompanyRoutes');
 
 
 
@@ -25,7 +26,7 @@ const app = express();
 const PORT = process.env.PORT || 4444;
 
 app.use(cors({
-  origin: 'http://localhost:5173', // أو رابط الفرونت إند
+  origin: 'https://purchase-beta.vercel.app/', // أو رابط الفرونت إند
   credentials: true
 }));
 
@@ -51,6 +52,7 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/shipping', shippingRoutes);
 app.use('/api/accounts', accountingRoutes);
 app.use('/api/transactions',transactionRoutes );
+app.use('/api/shippingCompany',ShippingCompanyRoutes );
 
 
 app.post('/logs', (req, res) => {

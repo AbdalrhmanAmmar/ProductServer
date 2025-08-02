@@ -42,4 +42,23 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+router.get('/:orderId', async (req, res) => {
+  try {
+    const invoices = await ShippingService.getShippingInvoiceByOrderId(req.params.orderId);
+    
+    res.status(200).json({
+      success: true,
+      message: invoices.length > 0 
+        ? 'Shipping invoices retrieved successfully' 
+        : 'No shipping invoices found',
+      data: { invoices }
+    });
+  } catch (error) {
+    res.status(400).json({ 
+      success: false, 
+      message: error.message 
+    });
+  }
+});
+
 module.exports = router;

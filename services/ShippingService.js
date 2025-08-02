@@ -43,6 +43,24 @@ class ShippingService {
       throw error;
     }
   }
+
+  static async getShippingInvoiceByOrderId(orderId) {
+  try {
+    console.log('Fetching shipping invoices for order:', orderId);
+    const invoices = await ShippingInvoice.find({ orderId });
+    
+    if (!invoices || invoices.length === 0) {
+      console.log('No shipping invoices found for order:', orderId);
+      return [];
+    }
+
+    console.log(`Found ${invoices.length} shipping invoices for order ${orderId}`);
+    return invoices;
+  } catch (error) {
+    console.error('Error fetching shipping invoices:', error);
+    throw error;
+  }
+}
 }
 
 module.exports = ShippingService;
