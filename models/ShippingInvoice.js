@@ -9,7 +9,12 @@ const ShippingItemSchema = new mongoose.Schema({
 });
 
 const ShippingInvoiceSchema = new mongoose.Schema({
-  orderId: { type: mongoose.Schema.Types.ObjectId, ref: 'Order', required: true },
+    orderId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'Order', 
+    required: true 
+  },
+  InvoiceId: { type: mongoose.Schema.Types.ObjectId, ref: 'Invoice', required: true },
   shippingCompanyName: { type: String, required: true },
   trackingNumber: { type: String, required: true },
   expectedDelivery: { type: Date, required: true },
@@ -25,6 +30,6 @@ const ShippingInvoiceSchema = new mongoose.Schema({
   items: [ShippingItemSchema]
 }, { timestamps: true });
 
-const shipping = mongoose.model('ShippingInvoice', ShippingInvoiceSchema);
+const ShippingInvoice = mongoose.model('ShippingInvoice', ShippingInvoiceSchema);
 
-module.exports = shipping;
+module.exports = ShippingInvoice;

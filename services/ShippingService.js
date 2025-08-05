@@ -1,66 +1,160 @@
+const mongoose = require('mongoose');
 const ShippingInvoice = require('../models/ShippingInvoice');
+
 class ShippingService {
-  static async createShippingInvoice(data) {
-    try {
-      console.log('Creating shipping invoice:', JSON.stringify(data, null, 2));
+  static async validateShippingData(data) {
+    const requiredFields = [
+      'InvoiceId',
+      'shippingCompanyName',
+      'trackingNumber',
+      'expectedDelivery',
+      'totalShippingCost',
+      'items'
+    ];
+    
+    const missingFields = requiredFields.filter(field => !data[field]);
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+    }
 
-      const shippingInvoice = new ShippingInvoice({
-        ...data,
-        expectedDelivery: new Date(data.expectedDelivery),
-      });
+    if (!Array.isArray(data.items) || data.items.length === 0) {
+      throw new Error('At least one item is required');
+    }
 
-      const saved = await shippingInvoice.save();
-      console.log('Shipping invoice created successfully:', saved._id);
-      return saved;
-    } catch (error) {
-      console.error('Error creating shipping invoice:', error);
-      throw error;
+    const invalidItems = data.items.filter(item => 
+      !item.description || 
+      !item.quantity || 
+      item.quantity < 1
+    );
+    
+    if (invalidItems.length > 0) {
+      throw new Error('Each item must have description and quantity (minimum 1)');
+    }
+
+    if (isNaN(new Date(data.expectedDelivery).getTime())) {
+      throw new Error('Invalid expected delivery date');
+    }
+
+    const numericFields = {
+      freightCharges: data.freightCharges || 0,
+      insurance: data.insurance || 0,
+      handlingFees: data.handlingFees || 0,
+      totalShippingCost: data.totalShippingCost
+    };
+    
+    for (const [field, value] of Object.entries(numericFields)) {
+      if (isNaN(value) || value < 0) {
+        throw new Error(`${field} must be a positive number`);
+      }
     }
   }
 
+static async createShippingInvoice(data) {
+  try {
+    // التحقق من وجود orderId
+    if (!data.orderId) {
+      throw new Error('Order ID is required');
+    }
+
+    await this.validateShippingData(data);
+
+    const shippingInvoice = new ShippingInvoice({
+      orderId: data.orderId,
+      InvoiceId: data.InvoiceId,
+      shippingCompanyName: data.shippingCompanyName,
+      trackingNumber: data.trackingNumber,
+      expectedDelivery: new Date(data.expectedDelivery),
+      freightCharges: data.freightCharges || 0,
+      insurance: data.insurance || 0,
+      handlingFees: data.handlingFees || 0,
+      totalShippingCost: data.totalShippingCost,
+      status: data.status || 'pending',
+      items: data.items.map(item => ({
+        description: item.description,
+        quantity: item.quantity,
+        photo: item.photo || '',
+        weight: item.weight || 0,
+        volume: item.volume || 0,
+        purchaseOrderId: item.purchaseOrderId // إضافة إذا كنت تريد ربط الأصناف بأوامر الشراء
+      }))
+    });
+
+    const savedInvoice = await shippingInvoice.save();
+    
+    // تحديث حالة الفاتورة
+    await mongoose.model('Invoice').findByIdAndUpdate(
+      data.InvoiceId,
+      { $set: { shippingStatus: 'processing' } },
+      { new: true }
+    );
+
+    // تحديث حالة الطلب إذا لزم الأمر
+    await mongoose.model('Order').findByIdAndUpdate(
+      data.orderId,
+      { $set: { hasShipping: true } },
+      { new: true }
+    );
+
+    return savedInvoice;
+  } catch (error) {
+    console.error('Error creating shipping invoice:', error);
+    throw error;
+  }
+}
   static async updateShippingInvoice(id, updateData) {
     try {
-      console.log('Updating shipping invoice ID:', id);
+      if (!mongoose.Types.ObjectId.isValid(id)) {
+        throw new Error('Invalid shipping invoice ID');
+      }
+
       const invoice = await ShippingInvoice.findById(id);
-      if (!invoice) throw new Error('Shipping invoice not found');
+      if (!invoice) {
+        throw new Error('Shipping invoice not found');
+      }
 
-      // Update fields
-      if (updateData.shippingCompanyName) invoice.shippingCompanyName = updateData.shippingCompanyName;
-      if (updateData.trackingNumber) invoice.trackingNumber = updateData.trackingNumber;
-      if (updateData.expectedDelivery) invoice.expectedDelivery = new Date(updateData.expectedDelivery);
-      if (updateData.freightCharges !== undefined) invoice.freightCharges = updateData.freightCharges;
-      if (updateData.insurance !== undefined) invoice.insurance = updateData.insurance;
-      if (updateData.handlingFees !== undefined) invoice.handlingFees = updateData.handlingFees;
-      if (updateData.totalShippingCost !== undefined) invoice.totalShippingCost = updateData.totalShippingCost;
-      if (updateData.status) invoice.status = updateData.status;
-      if (updateData.items) invoice.items = updateData.items;
+      const updatableFields = [
+        'shippingCompanyName',
+        'trackingNumber',
+        'expectedDelivery',
+        'freightCharges',
+        'insurance',
+        'handlingFees',
+        'totalShippingCost',
+        'status',
+        'items'
+      ];
 
-      const updated = await invoice.save();
-      console.log('Shipping invoice updated successfully:', updated._id);
-      return updated;
+      updatableFields.forEach(field => {
+        if (updateData[field] !== undefined) {
+          if (field === 'expectedDelivery') {
+            invoice[field] = new Date(updateData[field]);
+          } else {
+            invoice[field] = updateData[field];
+          }
+        }
+      });
+
+      const updatedInvoice = await invoice.save();
+      return updatedInvoice;
     } catch (error) {
       console.error('Error updating shipping invoice:', error);
       throw error;
     }
   }
 
-  static async getShippingInvoiceByOrderId(orderId) {
-  try {
-    console.log('Fetching shipping invoices for order:', orderId);
-    const invoices = await ShippingInvoice.find({ orderId });
-    
-    if (!invoices || invoices.length === 0) {
-      console.log('No shipping invoices found for order:', orderId);
-      return [];
-    }
+  static async getShippingInvoicesByOrderId(orderId) {
+    try {
+      if (!mongoose.Types.ObjectId.isValid(orderId)) {
+        throw new Error('Invalid order ID');
+      }
 
-    console.log(`Found ${invoices.length} shipping invoices for order ${orderId}`);
-    return invoices;
-  } catch (error) {
-    console.error('Error fetching shipping invoices:', error);
-    throw error;
+      const invoices = await ShippingInvoice.find({ orderId });
+      return invoices;
+    } catch (error) {
+      console.error('Error fetching shipping invoices:', error);
+      throw error;
+    }
   }
-}
 }
 
 module.exports = ShippingService;

@@ -26,7 +26,7 @@ const app = express();
 const PORT = process.env.PORT || 4444;
 
 app.use(cors({
-  origin: 'https://purchase-beta.vercel.app', // أو رابط الفرونت إند
+  origin: ['https://purchase-beta.vercel.app' , 'http://localhost:5173'], // أو رابط الفرونت إند
   credentials: true
 }));
 
