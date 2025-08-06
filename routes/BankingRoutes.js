@@ -1,6 +1,6 @@
 const express = require('express');
+const BankingService = require('../services/BankingService');
 const router = express.Router();
-const bankingService = require('../services/bankingService');
 
 // Apply authentication middleware to all routes (uncomment when auth is implemented)
 // router.use(authMiddleware);
@@ -10,7 +10,7 @@ const bankingService = require('../services/bankingService');
 // GET /api/banking/accounts - Get all bank accounts
 router.get('/accounts', async (req, res) => {
   try {
-    const accounts = await bankingService.getAllBankAccounts();
+    const accounts = await BankingService.getAllBankAccounts();
     res.status(200).json({
       success: true,
       accounts: accounts
