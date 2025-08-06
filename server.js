@@ -19,6 +19,7 @@ const shippingRoutes = require('./routes/shippingRoutes');
 const accountingRoutes = require('./routes/accountingRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const ShippingCompanyRoutes = require('./routes/ShippingCompanyRoutes');
+const BankingRoutes = require('./routes/BankingRoutes');
 
 
 
@@ -52,6 +53,7 @@ app.use('/api/shipping', shippingRoutes);
 app.use('/api/accounts', accountingRoutes);
 app.use('/api/transactions',transactionRoutes );
 app.use('/api/shippingCompany',ShippingCompanyRoutes );
+app.use('/api/banking',BankingRoutes );
 
 
 app.post('/logs', (req, res) => {
