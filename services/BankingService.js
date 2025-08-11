@@ -144,112 +144,148 @@ class BankingService {
   }
 
   // Send money (withdrawal/transfer)
-  async sendMoney(transactionData) {
-    try {
-      console.log('Processing send money transaction');
-      
-      const { accountId, recipientType, recipientId, amount, description, paymentMethod, reference } = transactionData;
+// Send money (withdrawal/transfer)
+async sendMoney(transactionData) {
+  try {
+    const { accountId, customerId, amount, description, paymentMethod, reference } = transactionData;
 
-      // Verify account exists and has sufficient funds
-      const account = await BankAccount.findById(accountId);
-      if (!account) {
-        throw new Error('Bank account not found');
-      }
-
-      if (account.balance < amount) {
-        throw new Error('Insufficient funds');
-      }
-
-      // Verify recipient exists
-      let recipientData = {};
-      if (recipientType === 'customer') {
-        const customer = await Client.findById(recipientId);
-        if (!customer) {
-          throw new Error('Customer not found');
-        }
-        recipientData.customerId = recipientId;
-      } else if (recipientType === 'supplier') {
-        const supplier = await Supplier.findById(recipientId);
-        if (!supplier) {
-          throw new Error('Supplier not found');
-        }
-        recipientData.supplierId = recipientId;
-      }
-
-      // Create transaction
-      const transaction = new BankTransaction({
-        accountId,
-        transactionType: 'withdrawal',
-        amount,
-        description,
-        reference,
-        paymentMethod: paymentMethod || 'bank_transfer',
-        recipientType,
-        recipientId,
-        status: 'completed',
-        ...recipientData
-      });
-
-      await transaction.save();
-
-      // Update balances if it's a customer or supplier payment
-      if (recipientType === 'customer' && recipientData.customerId) {
-        await this.updateCustomerBalance(recipientData.customerId, -amount);
-      } else if (recipientType === 'supplier' && recipientData.supplierId) {
-        await this.updateSupplierBalance(recipientData.supplierId, -amount);
-      }
-
-      console.log('Send money transaction completed successfully');
-      return transaction;
-    } catch (error) {
-      console.error('Error processing send money:', error.message);
-      throw error;
+    // التحقق من الحقول المطلوبة
+    if (!accountId || !customerId || !amount || !description) {
+      throw new Error('Required fields: accountId, customerId, amount, description');
     }
+
+    // التحقق من وجود الحساب البنكي ورصيده
+    const account = await BankAccount.findById(accountId);
+    if (!account) {
+      throw new Error('Bank account not found');
+    }
+
+    if (account.balance < amount) {
+      throw new Error('Insufficient funds');
+    }
+
+    // التحقق من وجود العميل
+    const customer = await Client.findById(customerId);
+    if (!customer) {
+      throw new Error('Customer not found');
+    }
+
+    // إنشاء المعاملة
+    const transaction = new BankTransaction({
+      accountId,
+      transactionType: 'withdrawal',
+      amount,
+      description,
+      reference,
+      paymentMethod: paymentMethod || 'bank_transfer',
+      customerId,
+      status: 'completed'
+    });
+
+    await transaction.save();
+
+    // تحديث رصيد العميل (الخصم)
+    customer.Balance -= amount;
+    await customer.save();
+
+    console.log('Send money transaction completed successfully');
+    return transaction;
+  } catch (error) {
+    console.error('Error processing send money:', error.message);
+    throw error;
   }
+}
+// Receive money (deposit)
+async receiveMoney(transactionData) {
+  try {
+    const { accountId, customerId, amount, description, paymentMethod, reference } = transactionData;
+
+    // التحقق من الحقول المطلوبة
+    if (!accountId || !customerId || !amount || !description) {
+      throw new Error('Required fields: accountId, customerId, amount, description');
+    }
+
+    // التحقق من وجود الحساب البنكي
+    const account = await BankAccount.findById(accountId);
+    if (!account) {
+      throw new Error('Bank account not found');
+    }
+
+    // التحقق من وجود العميل
+    const customer = await Client.findById(customerId);
+    if (!customer) {
+      throw new Error('Customer not found');
+    }
+
+    // إنشاء المعاملة
+    const transaction = new BankTransaction({
+      accountId,
+      transactionType: 'deposit',
+      amount,
+      description,
+      reference,
+      paymentMethod: paymentMethod || 'bank_transfer',
+      customerId,
+      status: 'completed'
+    });
+
+    await transaction.save();
+
+    // تحديث رصيد العميل (الإضافة)
+    customer.Balance += amount;
+    await customer.save();
+
+    console.log('Receive money transaction completed successfully');
+    return transaction;
+  } catch (error) {
+    console.error('Error processing receive money:', error.message);
+    throw error;
+  }
+}
 
   // Receive money (deposit)
-  async receiveMoney(transactionData) {
-    try {
-      console.log('Processing receive money transaction');
-      
-      const { accountId, customerId, amount, description, paymentMethod, reference } = transactionData;
+async receiveMoney(transactionData) {
+  try {
+    console.log('Processing receive money transaction');
+    
+    const { accountId, customerId, amount, description, paymentMethod, reference } = transactionData;
 
-      // Verify account exists
-      const account = await BankAccount.findById(accountId);
-      if (!account) {
-        throw new Error('Bank account not found');
-      }
-
-      // Verify customer exists
-      const customer = await Client.findById(customerId);
-      if (!customer) {
-        throw new Error('Customer not found');
-      }
-
-      // Create transaction
-      const transaction = new BankTransaction({
-        accountId,
-        transactionType: 'deposit',
-        amount,
-        description,
-        reference,
-        paymentMethod: paymentMethod || 'bank_transfer',
-        customerId,
-        status: 'completed'
-      });
-
-      await transaction.save();
-
-      // Update customer balance
-      await this.updateCustomerBalance(customerId, -amount, amount);
-
-      console.log('Receive money transaction completed successfully');
-      return transaction;
-    } catch (error) {
-      console.error('Error processing receive money:', error.message);
-      throw error;
+    // التحقق من وجود الحساب البنكي
+    const account = await BankAccount.findById(accountId);
+    if (!account) {
+      throw new Error('Bank account not found');
     }
+
+    // التحقق من وجود العميل
+    const customer = await Client.findById(customerId);
+    if (!customer) {
+      throw new Error('Customer not found');
+    }
+
+    // إنشاء المعاملة
+    const transaction = new BankTransaction({
+      accountId,
+      transactionType: 'deposit',
+      amount,
+      description,
+      reference,
+      paymentMethod: paymentMethod || 'bank_transfer',
+      customerId,
+      status: 'completed'
+    });
+
+    await transaction.save();
+
+    // تحديث رصيد العميل (زيادة الرصيد)
+    await this.updateCustomerBalance(customerId, 0, amount);
+
+    console.log('Receive money transaction completed successfully');
+    return transaction;
+  } catch (error) {
+    console.error('Error processing receive money:', error.message);
+    throw error;
   }
+}
 
   // ========== BALANCES ==========
 
@@ -280,91 +316,89 @@ class BankingService {
   }
 
   // Update customer balance
-  async updateCustomerBalance(customerId, outstandingChange = 0, paymentAmount = 0) {
-    try {
-      console.log('Updating customer balance:', customerId);
+async updateCustomerBalance(customerId, outstandingChange = 0, paymentAmount = 0) {
+  try {
+    console.log('Updating customer balance:', customerId);
 
-      const customer = await Client.findById(customerId);
-      if (!customer) {
-        throw new Error('Customer not found');
-      }
-
-      let balance = await CustomerBalance.findOne({ customerId });
-      
-      if (!balance) {
-        // Create new balance record
-        balance = new CustomerBalance({
-          customerId,
-          customerName: customer.companyName,
-          totalInvoiced: 0,
-          totalPaid: 0,
-          outstandingBalance: 0
-        });
-      }
-
-      // Update balance
-      balance.outstandingBalance += outstandingChange;
-      balance.totalPaid += paymentAmount;
-
-      if (paymentAmount > 0) {
-        balance.lastPaymentDate = new Date();
-        balance.lastPaymentAmount = paymentAmount;
-      }
-
-      balance.lastUpdated = new Date();
-      await balance.save();
-
-      console.log('Customer balance updated successfully');
-      return balance;
-    } catch (error) {
-      console.error('Error updating customer balance:', error.message);
-      throw error;
+    const customer = await Client.findById(customerId);
+    if (!customer) {
+      throw new Error('Customer not found');
     }
-  }
 
+    // تحديث رصيد العميل في نموذج Client
+    customer.Balance += paymentAmount - outstandingChange;
+    await customer.save();
+
+    let balance = await CustomerBalance.findOne({ customerId });
+    
+    if (!balance) {
+      balance = new CustomerBalance({
+        customerId,
+        customerName: customer.companyName,
+        totalInvoiced: 0,
+        totalPaid: 0,
+        outstandingBalance: 0
+      });
+    }
+
+    balance.outstandingBalance += outstandingChange;
+    balance.totalPaid += paymentAmount;
+
+    if (paymentAmount > 0) {
+      balance.lastPaymentDate = new Date();
+      balance.lastPaymentAmount = paymentAmount;
+    }
+
+    balance.lastUpdated = new Date();
+    await balance.save();
+
+    console.log('Customer balance updated successfully');
+    return balance;
+  } catch (error) {
+    console.error('Error updating customer balance:', error.message);
+    throw error;
+  }
+}
   // Update supplier balance
-  async updateSupplierBalance(supplierId, outstandingChange = 0, paymentAmount = 0) {
-    try {
-      console.log('Updating supplier balance:', supplierId);
+async updateSupplierBalance(supplierId, outstandingChange = 0, paymentAmount = 0) {
+  try {
+    console.log('Updating supplier balance:', supplierId);
 
-      const supplier = await Supplier.findById(supplierId);
-      if (!supplier) {
-        throw new Error('Supplier not found');
-      }
-
-      let balance = await SupplierBalance.findOne({ supplierId });
-      
-      if (!balance) {
-        // Create new balance record
-        balance = new SupplierBalance({
-          supplierId,
-          supplierName: supplier.supplierName,
-          totalInvoiced: 0,
-          totalPaid: 0,
-          outstandingBalance: 0
-        });
-      }
-
-      // Update balance
-      balance.outstandingBalance += outstandingChange;
-      balance.totalPaid += paymentAmount;
-
-      if (paymentAmount > 0) {
-        balance.lastPaymentDate = new Date();
-        balance.lastPaymentAmount = paymentAmount;
-      }
-
-      balance.lastUpdated = new Date();
-      await balance.save();
-
-      console.log('Supplier balance updated successfully');
-      return balance;
-    } catch (error) {
-      console.error('Error updating supplier balance:', error.message);
-      throw error;
+    const supplier = await Supplier.findById(supplierId);
+    if (!supplier) {
+      throw new Error('Supplier not found');
     }
-  }
 
+    let balance = await SupplierBalance.findOne({ supplierId });
+    
+    if (!balance) {
+      balance = new SupplierBalance({
+        supplierId,
+        supplierName: supplier.supplierName,
+        totalInvoiced: 0,
+        totalPaid: 0,
+        outstandingBalance: 0
+      });
+    }
+
+    balance.outstandingBalance += outstandingChange;
+    balance.totalPaid += paymentAmount;
+
+    if (paymentAmount > 0) {
+      balance.lastPaymentDate = new Date();
+      balance.lastPaymentAmount = paymentAmount;
+    }
+
+    balance.lastUpdated = new Date();
+    await balance.save();
+
+    console.log('Supplier balance updated successfully');
+    return balance;
+  } catch (error) {
+    console.error('Error updating supplier balance:', error.message);
+    throw error;
+  }
+}
   // Initialize/sync customer balances from existing data
   async syncCustomerBalances() {
     try {

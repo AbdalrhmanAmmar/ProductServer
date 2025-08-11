@@ -9,28 +9,41 @@ router.post('/', async (req, res) => {
     console.log('POST /api/invoices - Creating invoice');
     console.log('Request body:', JSON.stringify(req.body, null, 2));
 
-    const requiredFields = ['purchaseId', 'dueDate', 'paymentTerms'];
+    const requiredFields = ['purchaseId', 'dueDate', 'items'];
+
     const missing = requiredFields.filter(f => !req.body[f]);
 
     if (missing.length) {
       return res.status(400).json({
         success: false,
-        message: `Missing fields: ${missing.join(', ')}`
+        message: `الحقول المطلوبة ناقصة: ${missing.join(', ')}`
       });
     }
 
-    const invoice = await InvoiceService.createInvoice(req.body);
+    // التحقق من أن items ليست فارغة
+    if (!req.body.items || req.body.items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'يجب إضافة عنصر واحد على الأقل للفاتورة'
+      });
+    }
+
+    const result = await InvoiceService.createInvoice(req.body);
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
 
     res.status(201).json({
       success: true,
-      message: 'Invoice created successfully',
-      data: { invoice },
+      message: 'تم إنشاء الفاتورة بنجاح',
+      data: result.data,
     });
   } catch (error) {
     console.error('Error in POST /api/invoices:', error);
-    res.status(400).json({
+    res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message || 'خطأ داخلي في الخادم'
     });
   }
 });
@@ -104,5 +117,179 @@ router.get('/:purchaseId', async (req, res) => {
   }
 });
 
+// PATCH /api/invoices/:id/status - تحديث حالة الفاتورة
+router.patch('/:id/status', async (req, res) => {
+  try {
+    console.log('PATCH /api/invoices/:id/status - Updating invoice status');
+    
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invoice ID is required'
+      });
+    }
+
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: 'Status is required'
+      });
+    }
+
+    const result = await InvoiceService.updateInvoiceStatus(id, status);
+
+    if (!result.success) {
+      return res.status(400).json({
+        success: false,
+        message: result.message
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      data: result.data
+    });
+  } catch (error) {
+    console.error('Error in PATCH /api/invoices/:id/status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'خطأ في الخادم'
+    });
+  }
+});
+
+// DELETE /api/invoices/:id
+router.delete('/:id', async (req, res) => {
+  try {
+    console.log('DELETE /api/invoices/:id - Deleting invoice');
+    
+    const { id } = req.params;
+    
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invoice ID is required'
+      });
+    }
+
+    const result = await InvoiceService.deleteInvoice(id);
+
+    if (!result.success) {
+      return res.status(404).json({
+        success: false,
+        message: result.message
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      data: result.data
+    });
+  } catch (error) {
+    console.error('Error in DELETE /api/invoices/:id:', error);
+    res.status(500).json({
+      success: false,
+      message: 'خطأ في الخادم'
+    });
+  }
+});
+
+// الحصول على رصيد العميل
+router.get('/client-balance/:clientId', async (req, res) => {
+  try {
+    console.log('GET /api/invoices/client-balance/:clientId - Getting client balance');
+    
+    const { clientId } = req.params;
+    
+    if (!clientId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Client ID is required'
+      });
+    }
+
+    const result = await InvoiceService.getClientInvoiceBalance(clientId);
+
+    if (!result.success) {
+      return res.status(404).json({
+        success: false,
+        message: result.message
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'تم الحصول على رصيد العميل بنجاح',
+      data: result.data
+    });
+  } catch (error) {
+    console.error('Error in GET /api/invoices/client-balance/:clientId:', error);
+    res.status(500).json({
+      success: false,
+      message: 'خطأ في الخادم'
+    });
+  }
+});
+
+// GET /api/invoices/stats - الحصول على إحصائيات الفواتير
+router.get('/stats', async (req, res) => {
+  try {
+    console.log('GET /api/invoices/stats - Getting invoice statistics');
+    
+    const result = await InvoiceService.getInvoiceStats();
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: result.message
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'تم الحصول على إحصائيات الفواتير بنجاح',
+      data: result.data
+    });
+  } catch (error) {
+    console.error('Error in GET /api/invoices/stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'خطأ في الخادم'
+    });
+  }
+});
+
+// GET /api/invoices - الحصول على جميع الفواتير
+router.get('/', async (req, res) => {
+  try {
+    console.log('GET /api/invoices - Getting all invoices');
+    
+    const result = await InvoiceService.getAllInvoices();
+
+    if (!result.success) {
+      return res.status(500).json({
+        success: false,
+        message: result.message
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'تم الحصول على الفواتير بنجاح',
+      data: result.data
+    });
+  } catch (error) {
+    console.error('Error in GET /api/invoices:', error);
+    res.status(500).json({
+      success: false,
+      message: 'خطأ في الخادم'
+    });
+  }
+});
 
 module.exports = router;

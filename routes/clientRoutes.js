@@ -101,10 +101,10 @@ router.get('/:id', async (req, res) => {
 });
 
 // PUT /api/clients/:id - Update client
-router.put('/:id', async (req, res) => {
+router.patch('/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { companyName, contactPerson, email, phone, country } = req.body;
+    const { companyName, contactPerson, email, phone, country,InvoiceBalance } = req.body;
 
     // Validate email format if provided
     if (email) {
@@ -123,6 +123,7 @@ router.put('/:id', async (req, res) => {
     if (email) updateData.email = email;
     if (phone) updateData.phone = phone;
     if (country) updateData.country = country;
+    if(InvoiceBalance) updateData.InvoiceBalance=InvoiceBalance;
 
     const client = await clientService.updateClient(id, updateData);
     

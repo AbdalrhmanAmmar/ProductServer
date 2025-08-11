@@ -6,6 +6,11 @@ const supplierSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+      Balance:{
+      type:Number,
+      default:0,
+    },
+
   createdAt: {
     type: Date,
     default: Date.now,

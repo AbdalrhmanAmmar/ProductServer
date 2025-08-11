@@ -51,7 +51,7 @@ const invoiceSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
-  amountPaid: { // إضافة تتبع المدفوعات
+  TotalInvoice: { // إضافة تتبع المدفوعات
     type: Number,
     default: 0,
     min: 0
@@ -61,6 +61,7 @@ const invoiceSchema = new mongoose.Schema({
     enum: ['draft', 'sent', 'paid', 'partially_paid', 'cancelled'],
     default: 'draft'
   },
+
   createdAt: {
     type: Date,
     default: Date.now,

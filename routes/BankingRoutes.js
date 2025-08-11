@@ -27,7 +27,7 @@ router.get('/accounts', async (req, res) => {
 // POST /api/banking/accounts - Create a new bank account
 router.post('/accounts', async (req, res) => {
   try {
-    const { accountName, bankName, accountNumber, routingNumber, accountType, balance, currency, description, allowOverdraft } = req.body;
+    const { accountName, bankName, accountNumber, routingNumber, accountType, balance, currency, description } = req.body;
 
     // Validate required fields
     if (!accountName || !bankName || !accountNumber) {
@@ -37,7 +37,7 @@ router.post('/accounts', async (req, res) => {
       });
     }
 
-    const account = await bankingService.createBankAccount({
+    const account = await BankingService.createBankAccount({
       accountName,
       bankName,
       accountNumber,
@@ -46,7 +46,6 @@ router.post('/accounts', async (req, res) => {
       balance: balance || 0,
       currency: currency || 'USD',
       description,
-      allowOverdraft: allowOverdraft || false
     });
 
     res.status(201).json({
@@ -75,7 +74,7 @@ router.post('/accounts', async (req, res) => {
 router.get('/accounts/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const account = await bankingService.getBankAccountById(id);
+    const account = await BankingService.getBankAccountById(id);
     
     res.status(200).json({
       success: true,
@@ -113,7 +112,7 @@ router.put('/accounts/:id', async (req, res) => {
     if (description !== undefined) updateData.description = description;
     if (allowOverdraft !== undefined) updateData.allowOverdraft = allowOverdraft;
 
-    const account = await bankingService.updateBankAccount(id, updateData);
+    const account = await BankingService.updateBankAccount(id, updateData);
     
     res.status(200).json({
       success: true,
@@ -148,7 +147,7 @@ router.put('/accounts/:id', async (req, res) => {
 router.delete('/accounts/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const account = await bankingService.deactivateBankAccount(id);
+    const account = await BankingService.deactivateBankAccount(id);
     
     res.status(200).json({
       success: true,
@@ -188,7 +187,7 @@ router.get('/transactions', async (req, res) => {
       if (endDate) filter.transactionDate.$lte = new Date(endDate);
     }
 
-    const transactions = await bankingService.getTransactions(filter, parseInt(limit), parseInt(offset));
+    const transactions = await BankingService.getTransactions(filter, parseInt(limit), parseInt(offset));
     
     res.status(200).json({
       success: true,
@@ -209,7 +208,7 @@ router.get('/accounts/:id/transactions', async (req, res) => {
     const { id } = req.params;
     const { limit = 100, offset = 0 } = req.query;
     
-    const transactions = await bankingService.getBankTransactions(id, parseInt(limit), parseInt(offset));
+    const transactions = await BankingService.getBankTransactions(id, parseInt(limit), parseInt(offset));
     
     res.status(200).json({
       success: true,
@@ -236,7 +235,7 @@ router.get('/accounts/:id/transactions', async (req, res) => {
 router.get('/transactions/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const transaction = await bankingService.getTransactionById(id);
+    const transaction = await BankingService.getTransactionById(id);
     
     res.status(200).json({
       success: true,
@@ -260,37 +259,22 @@ router.get('/transactions/:id', async (req, res) => {
 });
 
 // POST /api/banking/send-money - Send money (withdrawal/transfer)
+// POST /api/banking/send-money - Send money (withdrawal/transfer)
 router.post('/send-money', async (req, res) => {
   try {
-    const { accountId, recipientType, recipientId, amount, description, paymentMethod, reference } = req.body;
+    const { accountId, recipientId, amount, description, paymentMethod, reference } = req.body;
 
     // Validate required fields
-    if (!accountId || !recipientType || !recipientId || !amount || !description) {
+    if (!accountId || !recipientId || !amount || !description) {
       return res.status(400).json({
         success: false,
-        message: 'Required fields: accountId, recipientType, recipientId, amount, description'
+        message: 'Required fields: accountId, recipientId, amount, description'
       });
     }
 
-    // Validate amount
-    if (amount <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Amount must be greater than 0'
-      });
-    }
-
-    // Validate recipient type
-    if (!['customer', 'supplier'].includes(recipientType)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Recipient type must be either customer or supplier'
-      });
-    }
-
-    const transaction = await bankingService.sendMoney({
+    const transaction = await BankingService.sendMoney({
       accountId,
-      recipientType,
+      recipientType: 'customer', // ثابت كما طلبت
       recipientId,
       amount: parseFloat(amount),
       description,
@@ -340,15 +324,7 @@ router.post('/receive-money', async (req, res) => {
       });
     }
 
-    // Validate amount
-    if (amount <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Amount must be greater than 0'
-      });
-    }
-
-    const transaction = await bankingService.receiveMoney({
+    const transaction = await BankingService.receiveMoney({
       accountId,
       customerId,
       amount: parseFloat(amount),
@@ -364,14 +340,6 @@ router.post('/receive-money', async (req, res) => {
     });
   } catch (error) {
     console.error('Error in POST /api/banking/receive-money:', error.message);
-    
-    if (error.message.includes('not found')) {
-      return res.status(404).json({
-        success: false,
-        message: error.message
-      });
-    }
-
     res.status(500).json({
       success: false,
       message: error.message
@@ -408,7 +376,7 @@ router.post('/internal-transfer', async (req, res) => {
       });
     }
 
-    const result = await bankingService.internalTransfer({
+    const result = await BankingService.internalTransfer({
       fromAccountId,
       toAccountId,
       amount: parseFloat(amount),
@@ -450,7 +418,7 @@ router.post('/internal-transfer', async (req, res) => {
 // GET /api/banking/customer-balances - Get all customer balances
 router.get('/customer-balances', async (req, res) => {
   try {
-    const balances = await bankingService.getCustomerBalances();
+    const balances = await BankingService.getCustomerBalances();
     res.status(200).json({
       success: true,
       balances: balances
@@ -467,7 +435,7 @@ router.get('/customer-balances', async (req, res) => {
 // GET /api/banking/supplier-balances - Get all supplier balances
 router.get('/supplier-balances', async (req, res) => {
   try {
-    const balances = await bankingService.getSupplierBalances();
+    const balances = await BankingService.getSupplierBalances();
     res.status(200).json({
       success: true,
       balances: balances
@@ -485,7 +453,7 @@ router.get('/supplier-balances', async (req, res) => {
 router.get('/customer-balances/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const balance = await bankingService.getCustomerBalanceById(id);
+    const balance = await BankingService.getCustomerBalanceById(id);
     
     res.status(200).json({
       success: true,
@@ -512,7 +480,7 @@ router.get('/customer-balances/:id', async (req, res) => {
 router.get('/supplier-balances/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const balance = await bankingService.getSupplierBalanceById(id);
+    const balance = await BankingService.getSupplierBalanceById(id);
     
     res.status(200).json({
       success: true,
@@ -541,7 +509,7 @@ router.put('/customer-balances/:id', async (req, res) => {
     const { id } = req.params;
     const { outstandingChange = 0, paymentAmount = 0 } = req.body;
 
-    const balance = await bankingService.updateCustomerBalance(
+    const balance = await BankingService.updateCustomerBalance(
       id, 
       parseFloat(outstandingChange), 
       parseFloat(paymentAmount)
@@ -575,7 +543,7 @@ router.put('/supplier-balances/:id', async (req, res) => {
     const { id } = req.params;
     const { outstandingChange = 0, paymentAmount = 0 } = req.body;
 
-    const balance = await bankingService.updateSupplierBalance(
+    const balance = await BankingService.updateSupplierBalance(
       id, 
       parseFloat(outstandingChange), 
       parseFloat(paymentAmount)
@@ -607,8 +575,8 @@ router.put('/supplier-balances/:id', async (req, res) => {
 router.post('/sync-balances', async (req, res) => {
   try {
     await Promise.all([
-      bankingService.syncCustomerBalances(),
-      bankingService.syncSupplierBalances()
+      BankingService.syncCustomerBalances(),
+      BankingService.syncSupplierBalances()
     ]);
     
     res.status(200).json({
@@ -639,7 +607,7 @@ router.post('/reconcile/:accountId', async (req, res) => {
       });
     }
 
-    const reconciliation = await bankingService.reconcileAccount(
+    const reconciliation = await BankingService.reconcileAccount(
       accountId,
       parseFloat(statementBalance),
       new Date(statementDate)

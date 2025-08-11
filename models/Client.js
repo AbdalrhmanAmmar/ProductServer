@@ -27,6 +27,14 @@ const clientSchema = new mongoose.Schema({
     required: true,
     trim: true,
   },
+  Balance:{
+    type:Number,
+    default:0
+  },
+  InvoiceBalance:{
+    type:Number,
+    default:0
+  },
   createdAt: {
     type: Date,
     default: Date.now,

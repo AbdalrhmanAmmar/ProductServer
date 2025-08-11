@@ -99,4 +99,8 @@ router.get('/:id', requireUser, async (req, res) => {
   }
 });
 
+
+
+// Update user by ID (partial update)
+
 module.exports = router;
