@@ -11,36 +11,50 @@ const PurchaseOrderService = require('../services/purchaseOrderService');
 router.post('/', async (req, res) => {
   try {
     console.log('POST /api/orders - Creating new order');
+    console.log('Request body:', req.body); // تسجيل البيانات الواردة
 
     const orderData = req.body;
 
-    // Validate required fields
+    // التحقق من الحقول المطلوبة
     const requiredFields = ['clientId', 'projectName', 'workflowType', 'expectedDelivery', 'commissionRate', 'requirements'];
     const missingFields = requiredFields.filter(field => !orderData[field]);
 
     if (missingFields.length > 0) {
+      console.error('Missing fields:', missingFields);
       return res.status(400).json({
         success: false,
         message: `Missing required fields: ${missingFields.join(', ')}`
       });
     }
 
-    const order = await OrderService.createOrder(orderData);
+    // منع إرسال orderItem يدوياً
+    if (orderData.orderItem) {
+      console.warn('Client tried to send orderItem manually:', orderData.orderItem);
+      delete orderData.orderItem;
+    }
 
+    const order = await OrderService.createOrder(orderData);
+    
+    console.log('Created order with orderItem:', order.orderItem); // تسجيل قيمة orderItem
+    
     res.status(201).json({
       success: true,
       message: 'Order created successfully',
-      data: { order }
+      data: { 
+        order: {
+          ...order.toObject(),
+          orderItem: order.orderItem // التأكيد على إرجاع القيمة
+        }
+      }
     });
   } catch (error) {
     console.error('Error in POST /api/orders:', error);
-    res.status(400).json({
+    res.status(500).json({ // تغيير إلى 500 لأخطاء السيرفر
       success: false,
-      message: error.message
+      message: error.message || 'Internal server error'
     });
   }
 });
-
 // Get all orders with pagination and filtering
 router.get('/', async (req, res) => {
   try {

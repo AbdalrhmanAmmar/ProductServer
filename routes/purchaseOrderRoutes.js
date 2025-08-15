@@ -23,7 +23,8 @@ router.post('/', async (req, res) => {
       console.log('Validation failed - missing fields:', missingFields);
       return res.status(400).json({
         success: false,
-        message: `Missing required fields: ${missingFields.join(', ')}`
+        message: `Missing required fields: ${missingFields.join(', ')}`,
+        missingFields
       });
     }
 
@@ -37,15 +38,26 @@ router.post('/', async (req, res) => {
     }
 
     // Validate each item
-    for (let i = 0; i < purchaseOrderData.items.length; i++) {
-      const item = purchaseOrderData.items[i];
+    const itemErrors = [];
+    purchaseOrderData.items.forEach((item, index) => {
       if (!item.description || !item.quantity || !item.unitPrice) {
-        console.log(`Validation failed - item ${i} missing required fields`);
-        return res.status(400).json({
-          success: false,
-          message: `Item ${i + 1} is missing required fields (description, quantity, unitPrice)`
-        });
+        itemErrors.push(`Item ${index + 1} is missing required fields (description, quantity, or unitPrice)`);
       }
+      if (item.quantity <= 0) {
+        itemErrors.push(`Item ${index + 1} quantity must be greater than 0`);
+      }
+      if (item.unitPrice < 0) {
+        itemErrors.push(`Item ${index + 1} unit price cannot be negative`);
+      }
+    });
+
+    if (itemErrors.length > 0) {
+      console.log('Validation failed - item errors:', itemErrors);
+      return res.status(400).json({
+        success: false,
+        message: 'Item validation failed',
+        errors: itemErrors
+      });
     }
 
     console.log('Validation passed, creating purchase order...');
@@ -54,13 +66,15 @@ router.post('/', async (req, res) => {
     res.status(201).json({
       success: true,
       message: 'Purchase order created successfully',
-      data: { purchaseOrder }
+      data: purchaseOrder
     });
   } catch (error) {
     console.error('Error in POST /api/purchase-orders:', error);
-    res.status(400).json({
+    const statusCode = error.message.includes('not found') ? 404 : 400;
+    res.status(statusCode).json({
       success: false,
-      message: error.message
+      message: error.message,
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
@@ -71,29 +85,53 @@ router.get('/', async (req, res) => {
     console.log('GET /api/purchase-orders - Fetching purchase orders list');
     console.log('Query parameters:', req.query);
 
+    // Parse query parameters
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const status = req.query.status;
+    const supplierId = req.query.supplierId;
+    const orderId = req.query.orderId;
+    const startDate = req.query.startDate;
+    const endDate = req.query.endDate;
+
+    // Build filter object
     const filters = {
-      page: req.query.page,
-      limit: req.query.limit,
-      status: req.query.status,
-      supplierId: req.query.supplierId,
-      orderId: req.query.orderId
+      ...(status && { status }),
+      ...(supplierId && { supplierId }),
+      ...(orderId && { orderId }),
+      ...(startDate && endDate && {
+        createdAt: {
+          $gte: new Date(startDate),
+          $lte: new Date(endDate)
+        }
+      })
     };
 
-    const result = await PurchaseOrderService.getPurchaseOrders(filters);
+    const result = await PurchaseOrderService.getPurchaseOrders({
+      page,
+      limit,
+      filters
+    });
 
     res.status(200).json({
       success: true,
-      data: result
+      data: {
+        total: result.total,
+        page: result.page,
+        pages: result.pages,
+        limit: result.limit,
+        purchaseOrders: result.purchaseOrders
+      }
     });
   } catch (error) {
     console.error('Error in GET /api/purchase-orders:', error);
     res.status(500).json({
       success: false,
-      message: error.message
+      message: 'Failed to retrieve purchase orders',
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
-
 // Get single purchase order by ID
 router.get('/:id', async (req, res) => {
   try {

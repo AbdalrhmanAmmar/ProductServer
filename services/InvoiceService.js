@@ -9,6 +9,8 @@ static async createInvoice(invoiceData) {
   session.startTransaction();
 
   try {
+    console.log('Starting invoice creation process...');
+    
     const {
       purchaseId,
       dueDate,
@@ -17,18 +19,16 @@ static async createInvoice(invoiceData) {
       commissionRate
     } = invoiceData;
 
-    // التحقق من وجود عناصر الفاتورة
     if (!items.length) {
       throw new Error('يجب وجود عنصر واحد على الأقل في الفاتورة');
     }
 
-    // جلب طلب الشراء فقط بدون أي عمليات populate أو references أخرى
+    console.log('Finding purchase order...');
     const purchaseOrder = await PurchaseOrder.findById(purchaseId).session(session);
     if (!purchaseOrder) {
       throw new Error('طلب الشراء غير موجود');
     }
 
-    // حساب مبالغ الفاتورة
     const calculatedItems = items.map((item) => ({
       description: item.description,
       quantity: item.quantity,
@@ -41,7 +41,7 @@ static async createInvoice(invoiceData) {
     const commissionFee = subtotal * (rate / 100);
     const total = subtotal + commissionFee;
 
-    // إنشاء الفاتورة
+    console.log('Creating new invoice object...');
     const invoice = new Invoice({
       purchaseId,
       invoiceDate: new Date(),
@@ -53,11 +53,15 @@ static async createInvoice(invoiceData) {
       commissionFee,
       total,
       status: 'draft',
+      InvoiceItem: 0 // سيتم تعبئتها تلقائياً في pre-save
     });
 
+    console.log('Saving invoice...');
     const savedInvoice = await invoice.save({ session });
+    console.log('Invoice saved:', savedInvoice);
 
     await session.commitTransaction();
+    console.log('Transaction committed successfully');
 
     return {
       success: true,
@@ -67,8 +71,8 @@ static async createInvoice(invoiceData) {
       },
     };
   } catch (error) {
+    console.error('Error in createInvoice:', error);
     await session.abortTransaction();
-    console.error('خطأ في إنشاء الفاتورة:', error.message);
     return {
       success: false,
       message: error.message || 'فشل في إنشاء الفاتورة',
@@ -78,7 +82,6 @@ static async createInvoice(invoiceData) {
     session.endSession();
   }
 }
-
 
 
 static async updateInvoice(invoiceId, updateData) {

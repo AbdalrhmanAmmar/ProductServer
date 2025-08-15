@@ -56,6 +56,10 @@ const invoiceSchema = new mongoose.Schema({
     default: 0,
     min: 0
   },
+  InvoiceItem:{
+    type:Number,
+    default:0
+  },
   status: {
     type: String,
     enum: ['draft', 'sent', 'paid', 'partially_paid', 'cancelled'],
@@ -73,10 +77,17 @@ const invoiceSchema = new mongoose.Schema({
   }
 }, { versionKey: false });
 
-invoiceSchema.pre('save', function (next) {
+invoiceSchema.pre('save', async function(next) {
+  if (this.isNew) {
+    // البحث عن آخر فاتورة للحصول على أعلى قيمة InvoiceItem
+    const lastInvoice = await this.constructor.findOne({}, {}, { sort: { 'InvoiceItem': -1 } });
+    this.InvoiceItem = lastInvoice ? lastInvoice.InvoiceItem + 1 : 1;
+  }
+  
   this.updatedAt = Date.now();
   next();
 });
+
 
 const Invoice = mongoose.model('Invoice', invoiceSchema);
 module.exports = Invoice;

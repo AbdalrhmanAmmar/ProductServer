@@ -108,6 +108,10 @@ const purchaseOrderSchema = new mongoose.Schema({
     default: 0,
     min: 0,
   },
+  PurchaseItem:{
+    type:Number,
+    default:0,
+  },
   payments: [purchaseOrderPaymentSchema],
   status: {
     type: String,
@@ -129,14 +133,24 @@ const purchaseOrderSchema = new mongoose.Schema({
 });
 
 // Update the updatedAt field before saving
-purchaseOrderSchema.pre('save', function(next) {
+purchaseOrderSchema.pre('save', async function(next) {
+  if (this.isNew) {
+    // البحث عن آخر طلب شراء للحصول على أعلى قيمة PurchaseItem
+    const lastPurchaseOrder = await this.constructor.findOne({}, {}, { sort: { 'PurchaseItem': -1 } });
+    if (lastPurchaseOrder && lastPurchaseOrder.PurchaseItem) {
+      this.PurchaseItem = lastPurchaseOrder.PurchaseItem + 1;
+    } else {
+      this.PurchaseItem = 1; // إذا لم يكن هناك أي طلبات شراء سابقة
+    }
+  }
+  
   if (!this.isNew) {
     this.updatedAt = Date.now();
   }
   next();
 });
 
-// Calculate remaining amount before saving
+// حساب المبلغ المتبقي قبل الحفظ
 purchaseOrderSchema.pre('save', function(next) {
   this.remainingAmount = this.totalAmount - this.paidAmount;
   next();

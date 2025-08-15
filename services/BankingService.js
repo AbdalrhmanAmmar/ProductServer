@@ -147,11 +147,16 @@ class BankingService {
 // Send money (withdrawal/transfer)
 async sendMoney(transactionData) {
   try {
-    const { accountId, customerId, amount, description, paymentMethod, reference } = transactionData;
+    const { accountId, customerId, supplierId, amount, description, paymentMethod, reference } = transactionData;
 
     // التحقق من الحقول المطلوبة
-    if (!accountId || !customerId || !amount || !description) {
-      throw new Error('Required fields: accountId, customerId, amount, description');
+    if (!accountId || !amount || !description) {
+      throw new Error('Required fields: accountId, amount, description');
+    }
+    
+    // التحقق من وجود أحد المعرفات (customerId أو supplierId)
+    if (!(customerId || supplierId)) {
+      throw new Error('Either customerId or supplierId is required');
     }
 
     // التحقق من وجود الحساب البنكي ورصيده
@@ -164,10 +169,25 @@ async sendMoney(transactionData) {
       throw new Error('Insufficient funds');
     }
 
-    // التحقق من وجود العميل
-    const customer = await Client.findById(customerId);
-    if (!customer) {
-      throw new Error('Customer not found');
+    let recipient;
+    let recipientType;
+    let recipientModel;
+    
+    // تحديد نوع المستلم ونموذجه
+    if (customerId) {
+      recipient = await Client.findById(customerId);
+      recipientType = 'customer';
+      recipientModel = 'Client';
+      if (!recipient) {
+        throw new Error('Customer not found');
+      }
+    } else {
+      recipient = await Supplier.findById(supplierId);
+      recipientType = 'supplier';
+      recipientModel = 'Supplier';
+      if (!recipient) {
+        throw new Error('Supplier not found');
+      }
     }
 
     // إنشاء المعاملة
@@ -178,17 +198,27 @@ async sendMoney(transactionData) {
       description,
       reference,
       paymentMethod: paymentMethod || 'bank_transfer',
-      customerId,
+      customerId: customerId || null,
+      supplierId: supplierId || null,
       status: 'completed'
     });
 
     await transaction.save();
 
-    // تحديث رصيد العميل (الخصم)
-    customer.Balance -= amount;
-    await customer.save();
+    // تحديث رصيد المستلم حسب نوعه
+    if (recipientType === 'customer') {
+      recipient.Balance -= amount; // سحب من العميل
+    } else {
+      recipient.Balance += amount; // إضافة للمورد
+    }
+    
+    await recipient.save();
 
-    console.log('Send money transaction completed successfully');
+    // تحديث رصيد الحساب البنكي (الخصم)
+    account.balance -= amount;
+    await account.save();
+
+    console.log(`Send money transaction to ${recipientType} (${recipientModel}) completed successfully`);
     return transaction;
   } catch (error) {
     console.error('Error processing send money:', error.message);
@@ -198,11 +228,16 @@ async sendMoney(transactionData) {
 // Receive money (deposit)
 async receiveMoney(transactionData) {
   try {
-    const { accountId, customerId, amount, description, paymentMethod, reference } = transactionData;
+    const { accountId, customerId, supplierId, amount, description, paymentMethod, reference } = transactionData;
 
     // التحقق من الحقول المطلوبة
-    if (!accountId || !customerId || !amount || !description) {
-      throw new Error('Required fields: accountId, customerId, amount, description');
+    if (!accountId || !amount || !description) {
+      throw new Error('Required fields: accountId, amount, description');
+    }
+    
+    // التحقق من وجود أحد المعرفات (customerId أو supplierId)
+    if (!customerId && !supplierId) {
+      throw new Error('Either customerId or supplierId is required');
     }
 
     // التحقق من وجود الحساب البنكي
@@ -211,10 +246,25 @@ async receiveMoney(transactionData) {
       throw new Error('Bank account not found');
     }
 
-    // التحقق من وجود العميل
-    const customer = await Client.findById(customerId);
-    if (!customer) {
-      throw new Error('Customer not found');
+    let recipient;
+    let recipientType;
+    let recipientModel;
+    
+    // تحديد نوع المستلم ونموذجه
+    if (customerId) {
+      recipient = await Client.findById(customerId);
+      recipientType = 'customer';
+      recipientModel = 'Client';
+      if (!recipient) {
+        throw new Error('Customer not found');
+      }
+    } else {
+      recipient = await Supplier.findById(supplierId);
+      recipientType = 'supplier';
+      recipientModel = 'Supplier';
+      if (!recipient) {
+        throw new Error('Supplier not found');
+      }
     }
 
     // إنشاء المعاملة
@@ -225,17 +275,29 @@ async receiveMoney(transactionData) {
       description,
       reference,
       paymentMethod: paymentMethod || 'bank_transfer',
-      customerId,
+      customerId: customerId || null,
+      supplierId: supplierId || null,
       status: 'completed'
     });
 
     await transaction.save();
 
-    // تحديث رصيد العميل (الإضافة)
-    customer.Balance += amount;
-    await customer.save();
+    // تحديث رصيد المستلم حسب نوعه
+    if (recipientType === 'customer') {
+      // عند استلام أموال من العميل: نخصم من رصيده (يعتبر دفع لك)
+      recipient.Balance -= amount;
+    } else {
+      // عند استلام أموال من المورد: نزيد رصيده (يعتبر سحب منه)
+      recipient.Balance += amount;
+    }
+    
+    await recipient.save();
 
-    console.log('Receive money transaction completed successfully');
+    // تحديث رصيد الحساب البنكي (الإضافة)
+    account.balance += amount;
+    await account.save();
+
+    console.log(`Receive money transaction from ${recipientType} (${recipientModel}) completed successfully`);
     return transaction;
   } catch (error) {
     console.error('Error processing receive money:', error.message);
@@ -244,48 +306,48 @@ async receiveMoney(transactionData) {
 }
 
   // Receive money (deposit)
-async receiveMoney(transactionData) {
-  try {
-    console.log('Processing receive money transaction');
+// async receiveMoney(transactionData) {
+//   try {
+//     console.log('Processing receive money transaction');
     
-    const { accountId, customerId, amount, description, paymentMethod, reference } = transactionData;
+//     const { accountId, customerId, amount, description, paymentMethod, reference } = transactionData;
 
-    // التحقق من وجود الحساب البنكي
-    const account = await BankAccount.findById(accountId);
-    if (!account) {
-      throw new Error('Bank account not found');
-    }
+//     // التحقق من وجود الحساب البنكي
+//     const account = await BankAccount.findById(accountId);
+//     if (!account) {
+//       throw new Error('Bank account not found');
+//     }
 
-    // التحقق من وجود العميل
-    const customer = await Client.findById(customerId);
-    if (!customer) {
-      throw new Error('Customer not found');
-    }
+//     // التحقق من وجود العميل
+//     const customer = await Client.findById(customerId);
+//     if (!customer) {
+//       throw new Error('Customer not found');
+//     }
 
-    // إنشاء المعاملة
-    const transaction = new BankTransaction({
-      accountId,
-      transactionType: 'deposit',
-      amount,
-      description,
-      reference,
-      paymentMethod: paymentMethod || 'bank_transfer',
-      customerId,
-      status: 'completed'
-    });
+//     // إنشاء المعاملة
+//     const transaction = new BankTransaction({
+//       accountId,
+//       transactionType: 'deposit',
+//       amount,
+//       description,
+//       reference,
+//       paymentMethod: paymentMethod || 'bank_transfer',
+//       customerId,
+//       status: 'completed'
+//     });
 
-    await transaction.save();
+//     await transaction.save();
 
-    // تحديث رصيد العميل (زيادة الرصيد)
-    await this.updateCustomerBalance(customerId, 0, amount);
+//     // تحديث رصيد العميل (زيادة الرصيد)
+//     await this.updateCustomerBalance(customerId, 0, amount);
 
-    console.log('Receive money transaction completed successfully');
-    return transaction;
-  } catch (error) {
-    console.error('Error processing receive money:', error.message);
-    throw error;
-  }
-}
+//     console.log('Receive money transaction completed successfully');
+//     return transaction;
+//   } catch (error) {
+//     console.error('Error processing receive money:', error.message);
+//     throw error;
+//   }
+// }
 
   // ========== BALANCES ==========
 

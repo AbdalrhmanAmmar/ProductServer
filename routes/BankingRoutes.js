@@ -262,20 +262,27 @@ router.get('/transactions/:id', async (req, res) => {
 // POST /api/banking/send-money - Send money (withdrawal/transfer)
 router.post('/send-money', async (req, res) => {
   try {
-    const { accountId, recipientId, amount, description, paymentMethod, reference } = req.body;
+    const { accountId, customerId, supplierId, amount, description, paymentMethod, reference } = req.body;
 
     // Validate required fields
-    if (!accountId || !recipientId || !amount || !description) {
+    if (!accountId || !amount || !description) {
       return res.status(400).json({
         success: false,
-        message: 'Required fields: accountId, recipientId, amount, description'
+        message: 'Required fields: accountId, amount, description'
+      });
+    }
+
+    if (!customerId && !supplierId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either customerId or supplierId is required'
       });
     }
 
     const transaction = await BankingService.sendMoney({
       accountId,
-      recipientType: 'customer', // ثابت كما طلبت
-      recipientId,
+      customerId: customerId || null,
+      supplierId: supplierId || null,
       amount: parseFloat(amount),
       description,
       paymentMethod,
@@ -285,7 +292,7 @@ router.post('/send-money', async (req, res) => {
     res.status(201).json({
       success: true,
       transaction: transaction,
-      message: 'Payment sent successfully'
+      message: 'Payment processed successfully'
     });
   } catch (error) {
     console.error('Error in POST /api/banking/send-money:', error.message);
@@ -311,22 +318,29 @@ router.post('/send-money', async (req, res) => {
   }
 });
 
-// POST /api/banking/receive-money - Receive money (deposit)
 router.post('/receive-money', async (req, res) => {
   try {
-    const { accountId, customerId, amount, description, paymentMethod, reference } = req.body;
+    const { accountId, customerId, supplierId, amount, description, paymentMethod, reference } = req.body;
 
     // Validate required fields
-    if (!accountId || !customerId || !amount || !description) {
+    if (!accountId || !amount || !description) {
       return res.status(400).json({
         success: false,
-        message: 'Required fields: accountId, customerId, amount, description'
+        message: 'Required fields: accountId, amount, description'
+      });
+    }
+
+    if (!customerId && !supplierId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Either customerId or supplierId is required'
       });
     }
 
     const transaction = await BankingService.receiveMoney({
       accountId,
       customerId,
+      supplierId,
       amount: parseFloat(amount),
       description,
       paymentMethod,
@@ -336,10 +350,18 @@ router.post('/receive-money', async (req, res) => {
     res.status(201).json({
       success: true,
       transaction: transaction,
-      message: 'Payment recorded successfully'
+      message: 'Payment received successfully'
     });
   } catch (error) {
     console.error('Error in POST /api/banking/receive-money:', error.message);
+    
+    if (error.message.includes('not found')) {
+      return res.status(404).json({
+        success: false,
+        message: error.message
+      });
+    }
+
     res.status(500).json({
       success: false,
       message: error.message

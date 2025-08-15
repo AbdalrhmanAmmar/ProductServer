@@ -86,6 +86,10 @@ const orderSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  orderItem:{
+    type:Number,
+    default:0
+  },
   createdAt: {
     type: Date,
     default: Date.now,
@@ -101,7 +105,17 @@ const orderSchema = new mongoose.Schema({
 });
 
 // Update the updatedAt field before saving
-orderSchema.pre('save', function(next) {
+orderSchema.pre('save', async function(next) {
+  if (this.isNew) {
+    // البحث عن آخر طلب للحصول على أعلى قيمة orderItem
+    const lastOrder = await this.constructor.findOne({}, {}, { sort: { 'orderItem': -1 } });
+    if (lastOrder && lastOrder.orderItem) {
+      this.orderItem = lastOrder.orderItem + 1;
+    } else {
+      this.orderItem = 1; 
+    }
+  }
+  
   if (!this.isNew) {
     this.updatedAt = Date.now();
   }

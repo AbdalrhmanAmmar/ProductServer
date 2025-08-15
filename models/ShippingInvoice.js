@@ -27,8 +27,30 @@ const ShippingInvoiceSchema = new mongoose.Schema({
     enum: ['pending', 'shipped', 'in_transit', 'delivered', 'cancelled'],
     default: 'pending'
   },
+  shippingItem:{
+    type:Number,
+    default:0
+  },
   items: [ShippingItemSchema]
 }, { timestamps: true });
+
+ShippingInvoiceSchema.pre('save', async function(next) {
+  if (this.isNew) {
+    try {
+      // البحث عن آخر مستند شحن للحصول على أعلى قيمة shippingItem
+      const lastShipping = await this.constructor.findOne({})
+        .sort({ shippingItem: -1 })
+        .select('shippingItem')
+        .lean();
+
+      this.shippingItem = lastShipping ? lastShipping.shippingItem + 1 : 1;
+    } catch (err) {
+      console.error('Error auto-incrementing shippingItem:', err);
+      this.shippingItem = 1; // القيمة الافتراضية في حالة حدوث خطأ
+    }
+  }
+  next();
+});
 
 const ShippingInvoice = mongoose.model('ShippingInvoice', ShippingInvoiceSchema);
 

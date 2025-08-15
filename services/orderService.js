@@ -6,29 +6,23 @@ class OrderService {
   // Create a new order
 static async createOrder(orderData) {
   try {
-    console.log('Creating new order with data:', orderData);
-
-    // ✅ Fetch the client from DB
     const client = await Client.findById(orderData.clientId);
-    if (!client) {
-      throw new Error('Client not found');
-    }
+    if (!client) throw new Error('Client not found');
 
-    // ✅ Use the real client name from DB
-    const clientName = client.companyName;
-
-    // ✅ Create the order with real client name
+    // لا تقم بتمرير orderItem في البيانات المرسلة
+    const { orderItem, ...restData } = orderData;
+    
     const order = new Order({
-      ...orderData,
-      clientName
+      ...restData,
+      clientName: client.companyName
+      // لا تضف orderItem هنا، سيتم توليده تلقائياً
     });
 
     const savedOrder = await order.save();
-    console.log('✅ Order created successfully:', savedOrder._id);
-
+    console.log('Order created with orderItem:', savedOrder.orderItem);
     return savedOrder;
   } catch (error) {
-    console.error('❌ Error creating order:', error);
+    console.error('Error creating order:', error);
     throw error;
   }
 }
