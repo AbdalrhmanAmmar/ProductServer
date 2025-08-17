@@ -13,23 +13,49 @@ class SupplierService {
     }
   }
 
-  static async getSupplierById(supplierId) {
-    try {
-      console.log(`Fetching supplier with ID: ${supplierId}`);
-      const supplier = await Supplier.findById(supplierId);
-      if (!supplier) {
-        throw new Error('Supplier not found');
-      }
-      console.log(`Found supplier: ${supplier.supplierName}`);
-      return supplier;
-    } catch (error) {
-      console.error('Error fetching supplier:', error);
-      if (error.message === 'Supplier not found') {
-        throw error;
-      }
-      throw new Error(`Failed to fetch supplier: ${error.message}`);
+static async getSupplierById(supplierId) {
+  try {
+    console.log(`Fetching supplier with ID: ${supplierId}`);
+    const supplier = await Supplier.findById(supplierId)
+      .populate('purchaseOrders', 'orderId totalAmount status deliveryDate');
+
+    if (!supplier) {
+      throw new Error('Supplier not found');
     }
+
+    console.log(`Found supplier: ${supplier.supplierName}`);
+    return supplier;
+  } catch (error) {
+    console.error('Error fetching supplier:', error);
+    if (error.message === 'Supplier not found') {
+      throw error;
+    }
+    throw new Error(`Failed to fetch supplier: ${error.message}`);
   }
+}
+
+static async getSupplierPurchases(supplierId) {
+  try {
+    const supplier = await Supplier.findById(supplierId)
+      .populate({
+        path: 'purchaseOrders',
+        populate: [
+          { path: 'orderId', select: 'projectName clientName' },
+          { path: 'items' },
+          { path: 'payments' }
+        ]
+      });
+
+    if (!supplier) {
+      throw new Error('Supplier not found');
+    }
+
+    return supplier.purchaseOrders;
+  } catch (error) {
+    throw new Error(`Failed to get supplier purchases: ${error.message}`);
+  }
+}
+
 
   static async createSupplier(supplierData) {
     try {
@@ -81,7 +107,12 @@ class SupplierService {
 
       const supplier = await Supplier.findByIdAndUpdate(
         supplierId,
-        { ...updateData, updatedAt: new Date() },
+         purchaseOrderData.supplierId,
+         
+        { ...updateData, updatedAt: new Date(),
+           $push: { purchaseOrders: savedPurchaseOrder._id }
+
+         },
         { new: true, runValidators: true }
       );
 
@@ -101,6 +132,7 @@ class SupplierService {
       console.log(`Deleting supplier with ID: ${supplierId}`);
       
       const supplier = await Supplier.findById(supplierId);
+      
       if (!supplier) {
         throw new Error('Supplier not found');
       }
@@ -243,6 +275,7 @@ class SupplierService {
       throw new Error(`Failed to generate supplier statement: ${error.message}`);
     }
   }
+  
 }
 
 module.exports = SupplierService;

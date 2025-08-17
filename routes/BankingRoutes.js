@@ -664,4 +664,22 @@ router.post('/reconcile/:accountId', async (req, res) => {
   }
 });
 
+router.get('/suppliers/:id/transactions', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const transactions = await BankingService.getSupplierTransactions(id);
+
+    res.status(200).json({
+      success: true,
+      transactions
+    });
+  } catch (error) {
+    console.error('Error in GET /api/banking/suppliers/:id/transactions:', error.message);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
 module.exports = router;

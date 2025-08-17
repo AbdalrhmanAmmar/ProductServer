@@ -24,6 +24,9 @@ const supplierSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+    purchaseOrders: [
+    { type: mongoose.Schema.Types.ObjectId, ref: 'PurchaseOrder' }
+  ]
 }, {
   versionKey: false,
 });

@@ -6,89 +6,53 @@ class PurchaseOrderService {
   // Create a new purchase order
 static async createPurchaseOrder(purchaseOrderData) {
   try {
-    console.log('Creating new purchase order with data:', JSON.stringify(purchaseOrderData, null, 2));
-
-    // Verify order exists
+    // 1. التحقق من وجود الطلب والمورد
     const order = await Order.findById(purchaseOrderData.orderId);
-    if (!order) {
-      throw new Error('Order not found');
-    }
-    console.log('Order found:', order.projectName);
+    if (!order) throw new Error('Order not found');
 
-    // Verify supplier exists
     const supplier = await Supplier.findById(purchaseOrderData.supplierId);
-    if (!supplier) {
-      throw new Error('Supplier not found');
-    }
-    console.log('Supplier found:', supplier.supplierName);
+    if (!supplier) throw new Error('Supplier not found');
 
-    // Calculate total amount from items
-    const totalAmount = purchaseOrderData.items.reduce((sum, item) => {
-      const itemTotal = (item.quantity || 0) * (item.unitPrice || 0);
-      console.log(`Item: ${item.description}, Qty: ${item.quantity}, Price: ${item.unitPrice}, Total: ${itemTotal}`);
-      return sum + itemTotal;
-    }, 0);
-    console.log('Calculated total amount:', totalAmount);
+    // 2. حساب المبالغ
+    const items = purchaseOrderData.items.map(item => ({
+      ...item,
+      total: item.quantity * item.unitPrice
+    }));
 
-    // Calculate paid amount from payment if provided
-    const paidAmount = purchaseOrderData.payment ? purchaseOrderData.payment.amount : 0;
-    console.log('Paid amount:', paidAmount);
+    const totalAmount = items.reduce((sum, item) => sum + item.total, 0);
+    const paidAmount = purchaseOrderData.payment?.amount || 0;
 
-    // Create purchase order first to get its ID
+    // 3. إنشاء طلب الشراء
     const purchaseOrder = new PurchaseOrder({
       orderId: purchaseOrderData.orderId,
       supplierId: purchaseOrderData.supplierId,
       supplierName: supplier.supplierName,
-      items: [], // Will be populated with item references
+      items: items,
       paymentTerms: purchaseOrderData.paymentTerms,
-      deliveryDate: new Date(purchaseOrderData.deliveryDate),
-      totalAmount,
-      paidAmount,
+      deliveryDate: purchaseOrderData.deliveryDate,
+      totalAmount: totalAmount,
+      paidAmount: paidAmount,
       remainingAmount: totalAmount - paidAmount,
       payments: purchaseOrderData.payment ? [{
         paymentType: purchaseOrderData.payment.paymentType,
-        amount: purchaseOrderData.payment.amount,
+        amount: paidAmount,
         paymentDate: new Date(),
         paymentMethod: purchaseOrderData.payment.paymentMethod,
         reference: purchaseOrderData.payment.reference || '',
         status: 'completed',
-        description: purchaseOrderData.payment.description || `${purchaseOrderData.payment.paymentType.replace('_', ' ')} payment for PO`
+        description: purchaseOrderData.payment.description || 'Initial payment'
       }] : []
     });
 
-    // Save the purchase order to get its ID
+    // 4. حفظ طلب الشراء
     const savedPurchaseOrder = await purchaseOrder.save();
-    console.log('Purchase order created successfully:', savedPurchaseOrder._id);
 
-    // Create and save each purchase item
-    const purchaseItems = await Promise.all(purchaseOrderData.items.map(async (item) => {
-      const purchaseItem = new PurchaseItem({
-        purchaseOrderId: savedPurchaseOrder._id,
-        orderId: purchaseOrderData.orderId,
-        supplierId: purchaseOrderData.supplierId,
-        description: item.description,
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        total: item.quantity * item.unitPrice,
-        unit: item.unit || 'piece',
-        category: item.category || 'general',
-        status: 'ordered'
-      });
-      return await purchaseItem.save();
-    }));
-
-    console.log('Created purchase items:', purchaseItems.length);
-
-    // Update purchase order with item references
-    savedPurchaseOrder.items = purchaseItems.map(item => item._id);
-    await savedPurchaseOrder.save();
-
-    // Update order workflow progress
-    await Order.findByIdAndUpdate(purchaseOrderData.orderId, {
-      hasPurchaseOrders: true,
-      updatedAt: new Date()
-    });
-    console.log('Order workflow updated');
+    // 5. تحديث المورد
+    await Supplier.findByIdAndUpdate(
+      purchaseOrderData.supplierId,
+      { $push: { purchaseOrders: savedPurchaseOrder._id } },
+      { new: true }
+    );
 
     return savedPurchaseOrder;
   } catch (error) {
@@ -359,6 +323,24 @@ static async updatePurchaseOrder(purchaseOrderId, updateData) {
     } catch (error) {
       console.error('Error creating purchase order payment:', error);
       throw error;
+    }
+  }
+
+   static async getPurchaseBySupplierId(supplierId) {
+    try {
+      console.log(`Fetching purchases for supplier: ${supplierId}`);
+
+      const supplier = await Supplier.findById(supplierId)
+        .populate('purchaseOrders', 'orderId totalAmount status deliveryDate createdAt');
+
+      if (!supplier) {
+        throw new Error('Supplier not found');
+      }
+
+      return supplier.purchaseOrders;
+    } catch (error) {
+      console.error('Error fetching purchases by supplier ID:', error);
+      throw new Error(`Failed to fetch purchases: ${error.message}`);
     }
   }
 }

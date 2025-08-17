@@ -174,4 +174,62 @@ router.get('/:id/statement', async (req, res) => {
   }
 });
 
+router.get('/:id/purchases', async (req, res) => {
+  try {
+    console.log(`GET /api/suppliers/${req.params.id}/purchases - Fetching supplier purchases`);
+    
+    // التحقق من صحة ObjectId
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid supplier ID'
+      });
+    }
+
+    const purchases = await SupplierService.getSupplierPurchases(req.params.id);
+    
+    res.status(200).json({
+      success: true,
+      purchases
+    });
+  } catch (error) {
+    console.error(`Error in GET /api/suppliers/${req.params.id}/purchases:`, error);
+    const statusCode = error.message === 'Supplier not found' ? 404 : 500;
+    res.status(statusCode).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
+
+// Get all purchases for a specific supplier
+router.get('/:id/purchases', async (req, res) => {
+  try {
+    const supplierId = req.params.id;
+
+    if (!mongoose.Types.ObjectId.isValid(supplierId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid supplier ID format'
+      });
+    }
+
+    const purchases = await PurchaseOrder.find({ supplierId: supplierId })
+      .populate('orderId', 'projectName clientName')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: purchases.length,
+      purchases
+    });
+  } catch (error) {
+    console.error('Error fetching supplier purchases:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Server error while fetching purchases'
+    });
+  }
+});
+
 module.exports = router;

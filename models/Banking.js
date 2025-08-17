@@ -17,22 +17,16 @@ const bankAccountSchema = new mongoose.Schema({
     required: [true, 'Account number is required'],
     unique: true,
     trim: true,
-    validate: {
-      validator: function(v) {
-        return /^\d{8,20}$/.test(v); // Validate account number format
-      },
-      message: props => `${props.value} is not a valid account number!`
-    }
+ 
+  },
+    isActive: {
+    type: Boolean,
+    default: true
   },
   routingNumber: {
     type: String,
     trim: true,
-    validate: {
-      validator: function(v) {
-        return !v || /^\d{9}$/.test(v); // Validate routing number if provided
-      },
-      message: props => `${props.value} is not a valid routing number!`
-    }
+
   },
   accountType: {
     type: String,
@@ -121,12 +115,7 @@ const bankTransactionSchema = new mongoose.Schema({
       return this.transactionType === 'transfer';
     }
   },
-  recipientId: {
-    type: mongoose.Schema.Types.ObjectId,
-    required: function() {
-      return this.transactionType === 'transfer' && this.recipientType !== 'external';
-    }
-  },
+
   recipientAccount: {
     type: String,
     required: function() {

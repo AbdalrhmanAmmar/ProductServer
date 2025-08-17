@@ -354,7 +354,22 @@ router.get('/order/:orderId', async (req, res) => {
 });
 // GET /api/invoices/purchase/:purchaseId
 
+router.get('/suppliers/:id/purchases', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const purchases = await PurchaseOrderService.getPurchaseBySupplierId(id);
 
+    res.status(200).json({
+      success: true,
+      purchases
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
 
 
 module.exports = router;

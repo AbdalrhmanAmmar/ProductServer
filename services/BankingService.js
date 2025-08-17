@@ -536,6 +536,27 @@ async updateSupplierBalance(supplierId, outstandingChange = 0, paymentAmount = 0
       throw error;
     }
   }
+
+  async  getSupplierTransactions(supplierId) {
+  try {
+    const transactions = await BankTransaction.find({ supplierId })
+      .populate('accountId', 'accountName bankName accountNumber') // معلومات الحساب
+      .populate('supplierId', 'supplierName') // معلومات المورد
+      .sort({ transactionDate: -1 }); // الأحدث أولاً
+    
+    return transactions;
+  } catch (err) {
+    throw new Error('Error fetching supplier transactions: ' + err.message);
+  }
 }
+
+  
+
+
+}
+
+
+// GET /api/banking/suppliers/:id/transactions
+
 
 module.exports = new BankingService();
